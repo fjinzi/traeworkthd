@@ -1,8 +1,33 @@
 <template>
   <div class="seckill-container">
-    <h1>商品秒杀活动</h1>
-    
-    <div class="product-list">
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1>商品秒杀活动</h1>
+      </div>
+      <div class="nav-menu">
+        <template v-if="userStore.isLoggedIn">
+          <span class="welcome-text">欢迎，{{ userStore.username }}</span>
+          <span v-if="userStore.isAdmin" class="admin-badge">管理员</span>
+          <router-link v-if="userStore.isAdmin" to="/admin" class="nav-link">后台管理</router-link>
+          <button class="logout-btn" @click="handleLogout">退出登录</button>
+        </template>
+        <template v-else>
+          <router-link to="/login" class="login-btn">登录 / 注册</router-link>
+        </template>
+      </div>
+    </nav>
+
+    <!-- 未登录提示 -->
+    <div v-if="!userStore.isLoggedIn" class="login-prompt">
+      <div class="prompt-content">
+        <p>🔒 请登录后查看秒杀商品</p>
+        <router-link to="/login" class="prompt-btn">立即登录</router-link>
+      </div>
+    </div>
+
+    <!-- 商品列表 -->
+    <div v-else class="product-list">
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="error" class="error">{{ error }}</div>
       <div v-else-if="products.length === 0" class="empty">暂无秒杀商品</div>
@@ -47,8 +72,13 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { seckillApi } from '@/api/product'
+import { useUserStore } from '@/store/user'
 import type { SeckillProduct } from '@/types/product'
+
+const router = useRouter()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const error = ref('')
@@ -112,6 +142,8 @@ const getButtonText = (product: SeckillProduct) => {
 }
 
 const fetchProducts = async () => {
+  if (!userStore.isLoggedIn) return
+  
   loading.value = true
   error.value = ''
   try {
@@ -121,8 +153,12 @@ const fetchProducts = async () => {
     } else {
       error.value = result.message
     }
-  } catch (e) {
-    error.value = '获取商品失败'
+  } catch (e: any) {
+    if (e.response?.status === 401) {
+      error.value = '登录已过期，请重新登录'
+    } else {
+      error.value = '获取商品失败'
+    }
   } finally {
     loading.value = false
   }
@@ -142,8 +178,17 @@ const handleSeckill = async (productId: number) => {
   }
 }
 
+const handleLogout = () => {
+  userStore.logout()
+  products.value = []
+  showMessage('已退出登录')
+}
+
 onMounted(() => {
-  fetchProducts()
+  userStore.initUser()
+  if (userStore.isLoggedIn) {
+    fetchProducts()
+  }
 })
 </script>
 
@@ -154,12 +199,130 @@ onMounted(() => {
   padding: 20px;
 }
 
-h1 {
-  text-align: center;
-  color: #e74c3c;
+/* 导航栏样式 */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 30px;
 }
 
+.nav-brand h1 {
+  margin: 0;
+  color: #e74c3c;
+  font-size: 24px;
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.welcome-text {
+  color: #666;
+  font-size: 14px;
+}
+
+.admin-badge {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.nav-link {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 6px 12px;
+  border: 1px solid #667eea;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.nav-link:hover {
+  background: #667eea;
+  color: white;
+}
+
+.login-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.logout-btn {
+  background: transparent;
+  color: #999;
+  border: 1px solid #ddd;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.logout-btn:hover {
+  color: #e74c3c;
+  border-color: #e74c3c;
+}
+
+/* 登录提示 */
+.login-prompt {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.prompt-content {
+  text-align: center;
+  padding: 60px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.prompt-content p {
+  font-size: 20px;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.prompt-btn {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  padding: 14px 40px;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.prompt-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 商品列表 */
 .product-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

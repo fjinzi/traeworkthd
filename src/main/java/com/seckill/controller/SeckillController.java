@@ -243,10 +243,11 @@ public class SeckillController {
     }
 
     @GetMapping("/products")
-    public ResponseEntity<Map<String, Object>> getProducts() {
+    public ResponseEntity<Map<String, Object>> getProducts(@RequestAttribute("userId") Long userId) {
         Map<String, Object> result = new HashMap<>();
         
         try {
+            log.info("用户 {} 访问秒杀商品列表", userId);
             List<Map<String, Object>> products = new java.util.ArrayList<>();
             
             List<com.seckill.dto.SeckillProductDTO> activeProducts = productService.getActiveProducts();
@@ -285,6 +286,25 @@ public class SeckillController {
             
         } catch (Exception e) {
             log.error("获取商品列表失败", e);
+            result.put("success", false);
+            result.put("message", "获取商品失败：" + e.getMessage());
+            return ResponseEntity.internalServerError().body(result);
+        }
+    }
+
+    @GetMapping("/products/public")
+    public ResponseEntity<Map<String, Object>> getPublicProducts() {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            log.info("未登录用户访问公开商品列表");
+            result.put("success", true);
+            result.put("message", "请登录后查看秒杀商品");
+            result.put("data", new java.util.ArrayList<>());
+            return ResponseEntity.ok(result);
+            
+        } catch (Exception e) {
+            log.error("获取公开商品列表失败", e);
             result.put("success", false);
             result.put("message", "获取商品失败：" + e.getMessage());
             return ResponseEntity.internalServerError().body(result);

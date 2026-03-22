@@ -243,10 +243,20 @@ public class SeckillController {
     }
 
     @GetMapping("/products")
-    public ResponseEntity<Map<String, Object>> getProducts() {
+    public ResponseEntity<Map<String, Object>> getProducts(
+            @RequestAttribute(value = "userId", required = false) Long userId,
+            @RequestAttribute(value = "role", required = false) Integer role) {
         Map<String, Object> result = new HashMap<>();
         
         try {
+            // 检查用户是否登录且为管理员角色(role=1)
+            if (userId == null || role == null || role != 1) {
+                result.put("success", false);
+                result.put("message", "请先登录后查看");
+                result.put("data", new java.util.ArrayList<>());
+                return ResponseEntity.ok(result);
+            }
+            
             List<Map<String, Object>> products = new java.util.ArrayList<>();
             
             List<com.seckill.dto.SeckillProductDTO> activeProducts = productService.getActiveProducts();

@@ -2,7 +2,12 @@
   <div class="seckill-container">
     <h1>商品秒杀活动</h1>
     
-    <div class="product-list">
+    <div v-if="!isLoggedIn" class="login-prompt">
+      <p>请先登录后查看秒杀商品列表</p>
+      <router-link to="/login" class="login-btn">去登录</router-link>
+    </div>
+    
+    <div class="product-list" v-if="isLoggedIn">
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="error" class="error">{{ error }}</div>
       <div v-else-if="products.length === 0" class="empty">暂无秒杀商品</div>
@@ -48,11 +53,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { seckillApi } from '@/api/product'
+import { userApi } from '@/api/user'
 import type { SeckillProduct } from '@/types/product'
 
 const loading = ref(false)
 const error = ref('')
 const products = ref<SeckillProduct[]>([])
+const isLoggedIn = ref(false)
 
 const message = reactive({
   show: false,
@@ -112,6 +119,8 @@ const getButtonText = (product: SeckillProduct) => {
 }
 
 const fetchProducts = async () => {
+  if (!isLoggedIn.value) return
+  
   loading.value = true
   error.value = ''
   try {
@@ -129,6 +138,11 @@ const fetchProducts = async () => {
 }
 
 const handleSeckill = async (productId: number) => {
+  if (!isLoggedIn.value) {
+    showMessage('请先登录后再参与秒杀', 'error')
+    return
+  }
+  
   try {
     const result = await seckillApi.executeSeckill(productId)
     if (result.success) {
@@ -143,6 +157,7 @@ const handleSeckill = async (productId: number) => {
 }
 
 onMounted(() => {
+  isLoggedIn.value = userApi.isLoggedIn()
   fetchProducts()
 })
 </script>
@@ -158,6 +173,36 @@ h1 {
   text-align: center;
   color: #e74c3c;
   margin-bottom: 30px;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.login-prompt p {
+  color: #666;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.login-btn {
+  display: inline-block;
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: bold;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .product-list {
